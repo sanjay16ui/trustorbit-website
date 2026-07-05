@@ -45,11 +45,16 @@ const confBarFill     = document.getElementById('confBarFill');
 const confBarTrack    = document.getElementById('confBarTrack');
 const reasoningText   = document.getElementById('reasoningText');
 const ledgerHash      = document.getElementById('ledgerHash');
+const soundToggleBtn = document.getElementById('soundToggleBtn');
+const soundOnIcon    = soundToggleBtn?.querySelector('.sound-on-icon');
+const soundOffIcon   = soundToggleBtn?.querySelector('.sound-off-icon');
+const soundLabel     = document.getElementById('soundToggleLabel');
 
 /* ══════════════════════════════════════════════════════
    STATE
 ══════════════════════════════════════════════════════ */
 let selectedFile = null;
+let isMuted      = false;
 
 /* ══════════════════════════════════════════════════════
    1. ANIMATED GRADIENT BACKGROUND CANVAS
@@ -477,6 +482,11 @@ function renderResults(data) {
   // ── Ledger Hash ──
   ledgerHash.textContent = hash;
 
+  // ── Sound Alarm Trigger ──
+  if (pct > 80 && (alertLevel === 'critical' || alertLevel === 'high')) {
+    playEmergencyAlert();
+  }
+
   showPanel('results');
   scrollToResultsMobile();
 }
@@ -564,7 +574,69 @@ function resetUI() {
 }
 
 /* ══════════════════════════════════════════════════════
-   10. SMOOTH ANCHOR SCROLL
+   10. SOUND TOGGLE & ALERTS
+══════════════════════════════════════════════════════ */
+function playEmergencyAlert() {
+  if (isMuted) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    
+    // synthesized clean alarm sound: alternating 2 beeps
+    const duration = 1.0;
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    // Frequency alternation: A5 (880Hz) to E5 (660Hz) to simulate alert
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(660, now + 0.25);
+    osc.frequency.setValueAtTime(880, now + 0.5);
+    osc.frequency.setValueAtTime(660, now + 0.75);
+    
+    // Volume envelopes for 4 discrete short pulses
+    gainNode.gain.setValueAtTime(0.12, now);
+    gainNode.gain.setValueAtTime(0.001, now + 0.2);
+    
+    gainNode.gain.setValueAtTime(0.12, now + 0.25);
+    gainNode.gain.setValueAtTime(0.001, now + 0.45);
+    
+    gainNode.gain.setValueAtTime(0.12, now + 0.5);
+    gainNode.gain.setValueAtTime(0.001, now + 0.7);
+    
+    gainNode.gain.setValueAtTime(0.12, now + 0.75);
+    gainNode.gain.setValueAtTime(0.001, now + 0.95);
+    
+    osc.start(now);
+    osc.stop(now + duration);
+  } catch (e) {
+    console.warn('AudioContext play blocked or error:', e);
+  }
+}
+
+if (soundToggleBtn) {
+  soundToggleBtn.addEventListener('click', () => {
+    isMuted = !isMuted;
+    soundToggleBtn.classList.toggle('muted', isMuted);
+    if (isMuted) {
+      soundOnIcon?.classList.add('hidden');
+      soundOffIcon?.classList.remove('hidden');
+      if (soundLabel) soundLabel.textContent = 'Muted';
+    } else {
+      soundOnIcon?.classList.remove('hidden');
+      soundOffIcon?.classList.add('hidden');
+      if (soundLabel) soundLabel.textContent = 'Alerts On';
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   11. SMOOTH ANCHOR SCROLL
 ══════════════════════════════════════════════════════ */
 document.querySelectorAll('a[href^="#"]').forEach((a) => {
   a.addEventListener('click', (e) => {

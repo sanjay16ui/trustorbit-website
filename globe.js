@@ -24,7 +24,6 @@
 
   /* ── guards ─────────────────────────────────────── */
   const BREAKPOINT = 1100;           // px — hide below this
-  if (window.innerWidth < BREAKPOINT) return;
   if (!window.THREE) {
     console.warn('[TrustOrbit Globe] Three.js not available.');
     return;
@@ -269,6 +268,7 @@
     renderer.setSize(SIZE, SIZE, false);
   }
   window.addEventListener('resize', onResize, { passive: true });
+  onResize();
 
   /* ─────────────────────────────────────────────────
      ANIMATION LOOP (delta-time capped at 50 ms)
